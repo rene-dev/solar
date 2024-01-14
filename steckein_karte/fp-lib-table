@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "finger")(type "KiCad")(uri "${KIPRJMOD}/finger.pretty")(options "")(descr ""))
+)
