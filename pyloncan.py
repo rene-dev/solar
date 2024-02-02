@@ -40,23 +40,7 @@ def connect_mqtt():
     client.connect(broker, port)
     return client
 
-
-# def publish(client):
-#     msg_count = 0
-#     while True:
-#         time.sleep(1)
-#         msg = f"messages: {msg_count} BEMIS!!!!"
-#         result = client.publish(topic, msg)
-#         # result: [0, 1]
-#         status = result[0]
-#         if status == 0:
-#             print(f"Send `{msg}` to topic `{topic}`")
-#         else:
-#             print(f"Failed to send message to topic {topic}")
-#         msg_count += 1
-
-
-def publish2(client, topic, msg, retain=False):
+def publish(client, topic, msg, retain=False):
     result = client.publish(topic, msg, retain=retain)
     # result: [0, 1]
     status = result[0]
@@ -67,7 +51,6 @@ def publish2(client, topic, msg, retain=False):
 
 
 client = connect_mqtt()
-#client.loop_start()
 
 convert = {
    0x351 : {
@@ -77,6 +60,7 @@ convert = {
             "unit_of_measurement": "V",
             "icon": "mdi:battery",
             "unique_id": "eikao4Qu",
+            "value_template": "{{value|round(2)}}"
         },
         'Chargelimit':{
             'convert': lambda d: struct.unpack('<h',d[2:4])[0]*0.1,
@@ -84,6 +68,7 @@ convert = {
             "unit_of_measurement": "A",
             "icon": "mdi:battery",
             "unique_id": "ailie7IH",
+            "value_template": "{{value|round(2)}}"
         },
         'Dischargelimit':{
             'convert': lambda d: struct.unpack('<h',d[4:6])[0]*0.1,
@@ -91,6 +76,7 @@ convert = {
             "unit_of_measurement": "A",
             "icon": "mdi:battery",
             "unique_id": "Ing7geis",
+            "value_template": "{{value|round(2)}}"
         },
    },
    0x355 : {
@@ -100,6 +86,7 @@ convert = {
             "unit_of_measurement": "%",
             "icon": "mdi:battery",
             "unique_id": "Eizusai8",
+            "value_template": "{{value|round(2)}}"
         },
         'SOH':{
             'convert': lambda d: struct.unpack('<H',d[2:4])[0],
@@ -107,6 +94,7 @@ convert = {
             "unit_of_measurement": "%",
             "icon": "mdi:battery",
             "unique_id": "OozaiK2S",
+            "value_template": "{{value|round(2)}}"
         },
    },
    0x356 : {
@@ -116,6 +104,7 @@ convert = {
             "unit_of_measurement": "V",
             "icon": "mdi:battery",
             "unique_id": "rai7eeJi",
+            "value_template": "{{value|round(2)}}"
         },
         'current_module':{
             'convert': lambda d: struct.unpack('<h',d[2:4])[0]*0.1,
@@ -123,6 +112,7 @@ convert = {
             "unit_of_measurement": "A",
             "icon": "mdi:battery",
             "unique_id": "lael8Ieb",
+            "value_template": "{{value|round(2)}}"
         },
         'temperature_module':{
             'convert': lambda d: struct.unpack('<h',d[4:6])[0]*0.1,
@@ -130,11 +120,13 @@ convert = {
             "unit_of_measurement": "°C",
             "icon": "mdi:thermometer",
             "unique_id": "ieY6oxoo",
+            "value_template": "{{value|round(2)}}"
         },
    },
 }
 
 state_topic = {}
+value_cache = {}
 
 for key,values in convert.items():
     for name, value in values.items():
@@ -143,7 +135,6 @@ for key,values in convert.items():
             "state_topic": f"pylontech/sensor/{name}/value",
             "device_class": value["device_class"],
             "unit_of_measurement": value["unit_of_measurement"],
-            #"value_template": value["value_template"],
             "icon": value["icon"],
             "unique_id": value["unique_id"],
             "device": {
@@ -152,60 +143,23 @@ for key,values in convert.items():
                 "model": "US5000",
                 "manufacturer": "Pylontech"}
             }
-        publish2(client, f"homeassistant/sensor/{name}/config", json.dumps(state_topic[name], ensure_ascii=False), retain=True)
+        if "value_template" in value:
+            state_topic[name]["value_template"] = value["value_template"]
+        publish(client, f"homeassistant/sensor/{name}/config", json.dumps(state_topic[name], ensure_ascii=False), retain=True)
 
-#sys.exit()
-
-# for key,value in convert.items():
-#     state_topic[key] = {"name": value["name"],
-#                         "state_topic": f"pylontech/sensor/{name}/value",
-#                         "device_class": value["device_class"],
-#                         "unit_of_measurement": value["unit_of_measurement"],
-#                         #"value_template": value["value_template"],
-#                         "icon": value["icon"],
-#                         "unique_id": value["unique_id"],
-#                         "device": {"identifiers": "ho3eiLai", 
-# 								   "name": "Heizung",
-#                                    "model": "PI",
-#                                    "manufacturer": "Junkers feat Bemistec Unlimited Enterprises"}
-#                         }
-    ###publish2(client, f"homeassistant/sensor/{value['name']}/config", json.dumps(state_topic[key], ensure_ascii=False), retain=True)
-
-#print (state_topic)
-
-    # publish2(client, "homeassistant/sensor/heizung_temp3/config", '{"name": "Temp_3", "state_topic": "homeassistant/sensor/heizung/state", "device_class": "temperature", "unit_of_measurement": "°C", "value_template": "{{ value_json.temperature}}", "unique_id": "dztstzhdetsrthsss22", "device": {"identifiers": "834242st333hsv", "name": "devicename_temp_3", "sw_version": "0.00000000001", "model": "lars laptop", "manufacturer": "lars"}}', retain=True)
-    # publish2(client, "homeassistant/sensor/heizung_temp4/config", '{"name": "Temp_4", "state_topic": "homeassistant/sensor/heizung/state", "device_class": "temperature", "unit_of_measurement": "°C", "value_template": "{{ value_json.temperature}}", "unique_id": "dztgrhsgfrthsss22", "device": {"identifiers": "834242st333hsv", "name": "Heizung", "model": "PI", "manufacturer": "Junkers feat Bemistec Unlimited Enterprises"}}', retain=True)
-
-
-#for key,value in state_topic:
-#    publish2(client, "homeassistant/sensor/heizung_temp1/config", json.dumps(config, ensure_ascii=False), retain=True)
-
-#sys.exit(0)
 print("start")
 while True:
-    message = bus.recv()
+    message = bus.recv(timeout=0.1)
     #print("msg")
-    if message.arbitration_id in convert.keys():
-        for name, measurement in convert[message.arbitration_id].items():
-            print(name, measurement['convert'](message.data))
-            value = measurement['convert'](message.data)
-        # key = convert[message.arbitration_id]['name']
-        # value = convert[message.arbitration_id]['convert'](message.data)
-        # #print ("{} {}".format(key,value))
-        # json_body = [
-        # {
-        #     'measurement': "heizwerte",
-        #     'tags': {
-        #         'location': "vorne"
-        #     },
-        #     'fields': {
-        #         key: value,
-        #     }
-        # }
-        # ]
-        #print(json_body)
-            print(state_topic[name]['state_topic'])
-            publish2(client, state_topic[name]['state_topic'], value)
+    if message:
+        if message.arbitration_id in convert.keys():
+            for name, measurement in convert[message.arbitration_id].items():
+                value = measurement['convert'](message.data)
+                value_cache[name] = value
+                print(name, value)
+                publish(client, state_topic[name]['state_topic'], value)
+        else:
+            pass
+            #print("unknown message: {}".format(message))
     else:
-        pass
-        #print("unknown message: {}".format(message))
+        print(value_cache)
