@@ -1,0 +1,4 @@
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0660", GROUP="plugdev"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{devpath}=="1.3" SYMLINK+="rechts"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{devpath}=="1.4" SYMLINK+="links"
+
