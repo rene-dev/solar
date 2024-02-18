@@ -1,0 +1,15 @@
+[Unit]
+Description=Energy
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/home/solar/mqtt.py
+User=solar
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,17 @@
+[Unit]
+Description=Pyloncan
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStartPre=+ip link set down can0
+ExecStartPre=+ip link set can0 up type can bitrate 500000 sample-point 0.875
+ExecStart=/home/solar/pyloncan.py
+User=solar
+
+[Install]
+WantedBy=multi-user.target
+
