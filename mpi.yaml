@@ -1,0 +1,226 @@
+substitutions:
+  name: mpi
+
+esphome:
+  name: mpi
+  friendly_name: mpi
+
+#external_components:
+#  - source: github://rene-dev/esphome@pip17
+#    components: [ pipsolar ]
+
+esp32:
+  board: esp32dev
+#  framework:
+#    type: arduino
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "OdfE5hcN2RBxvxa1D+3LMMH3LQuaDwS5vkQqiOA0urA="
+
+ota:
+  platform: esphome
+  password: "323ff733ffb8771d5f2886a72fad59da"
+
+logger:
+  level: DEBUG
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_OUT
+
+
+#external_components:
+#  - source: my_components
+
+uart:
+  tx_pin: GPIO17
+  rx_pin: GPIO34
+  baud_rate: 2400
+  debug:
+    direction: BOTH
+    dummy_receiver: false
+#    after:
+#      delimiter: "\r"
+    sequence:
+      - lambda: UARTDebug::log_string(direction, bytes);
+
+#mpi:
+#  - id: inverter0
+
+#interval:
+#  - interval: 10s
+#    then:
+#      uart.write: "^P003GS\r"
+
+pipsolar:
+  - id: inverter0
+
+sensor:
+  - platform: pipsolar
+    pipsolar_id: inverter0
+    inverter_heat_sink_temperature:
+      name: ${name} inverter_heat_sink_temperature
+    component_max_temp:
+      name: ${name} component_max_temp
+    energy:
+      name: ${name} energy
+    pv_voltage1:
+      name: ${name} pv_voltage1
+    pv_voltage2:
+      name: ${name} pv_voltage2
+    pv_current1:
+      name: ${name} pv_current1
+    pv_current2:
+      name: ${name} pv_current2
+    grid_frequency:
+      name: ${name} grid_frequency
+    pv_power1:
+      name: ${name} pv_power1
+    pv_power2:
+      name: ${name} pv_power2
+    battery_power:
+      name: ${name} battery_power
+    ac_input_total_active_power:
+      name: ${name} ac_input_total_active_power
+    bms_soc:
+      id: bms_soc
+      internal: true
+    bms_volt:
+      id: bms_volt
+      internal: true
+    bms_chargevoltage:
+      id: bms_chargevoltage
+      internal: true
+    bms_chargelimit:
+      id: bms_chargelimit
+      internal: true
+    bms_dischargelimit:
+      id: bms_dischargelimit
+      internal: true
+    bms_stopdischarge:
+      id: bms_stopdischarge
+      internal: true
+    bms_stopcharge:
+     id: bms_stopcharge
+     internal: true
+    eminfo:
+     id: eminfo
+     internal: true
+
+# Battery sensors
+  - platform: template
+    name: "Battery Chargevoltage"
+    device_class: voltage
+    id: battery_chargevoltage
+    unit_of_measurement: V
+    #icon: mdi:battery
+  - platform: template
+    name: "Battery Chargelimit"
+    device_class: current
+    id: battery_chargelimit
+    unit_of_measurement: A
+    #icon: mdi:battery
+  - platform: template
+    name: "Battery Dischargelimit"
+    device_class: current
+    id: battery_dischargelimit
+    unit_of_measurement: A
+    #icon: mdi:battery
+  - platform: template
+    name: "Battery SOC"
+    id: battery_soc
+    device_class: battery
+    unit_of_measurement: "%"
+  - platform: template
+    name: "Battery SOH"
+    id: battery_soh
+    device_class: battery
+    unit_of_measurement: "%"
+  - platform: template
+    name: "Battery Voltage"
+    id: battery_voltage
+    device_class: voltage
+    unit_of_measurement: V
+  - platform: template
+    name: "Battery Current"
+    id: battery_current
+    device_class: current
+    #accuracy_decimals: 2
+    unit_of_measurement: A
+  - platform: template
+    name: "Battery Power"
+    id: battery_power
+    device_class: power
+    #accuracy_decimals: 1
+    unit_of_measurement: W
+  - platform: template
+    name: "Battery Temperature"
+    id: battery_temperature
+    device_class: temperature
+    #accuracy_decimals: 2
+    unit_of_measurement: "°C"
+
+canbus:
+  - platform: esp32_can
+    tx_pin: GPIO33
+    rx_pin: GPIO32
+    can_id: 1
+    bit_rate: 500kbps
+    on_frame:
+    - can_id: 0x351
+      then:
+      - lambda: |-
+          float chargevoltage  = (float)(int16_t)(x[0] | x[1] << 8) * 0.1f;
+          float chargelimit    = (float)(int16_t)(x[2] | x[3] << 8) * 0.1f;
+          float dischargelimit = (float)(int16_t)(x[4] | x[5] << 8) * 0.1f;
+
+          id(bms_chargevoltage).publish_state(chargevoltage);
+          id(bms_chargelimit).publish_state(chargelimit);
+          id(bms_dischargelimit).publish_state(dischargelimit);
+
+          id(battery_chargevoltage).publish_state(chargevoltage);
+          id(battery_chargelimit).publish_state(chargelimit);
+          id(battery_dischargelimit).publish_state(dischargelimit);
+
+          //ESP_LOGD("pylontech", "Chargevoltage %f",  chargevoltage);
+          //ESP_LOGD("pylontech", "Chargelimit %f",    chargelimit);
+          //ESP_LOGD("pylontech", "Dischargelimit %f", dischargelimit);
+    - can_id: 0x355
+      then:
+      - lambda: |-
+          int soc = x[0] | x[1] << 8;
+          int soh = x[2] | x[3] << 8;
+
+          id(bms_stopcharge).publish_state(0);
+          id(bms_stopdischarge).publish_state(0);
+
+          id(bms_soc).publish_state(soc);
+
+          id(battery_soc).publish_state(soc);
+          id(battery_soh).publish_state(soh);
+
+          //ESP_LOGD("pylontech", "SOC %i", soc);
+          //ESP_LOGD("pylontech", "SOH %i", soh);
+    - can_id: 0x356
+      then:
+      - lambda: |-
+          float voltage =     (float)(int16_t)(x[0] | x[1] << 8) * 0.01f;
+          float current =     (float)(int16_t)(x[2] | x[3] << 8) * 0.1f;
+          float temperature = (float)(int16_t)(x[4] | x[5] << 8) * 0.1f;
+          float power = voltage * current;
+
+          id(bms_volt).publish_state(voltage);
+
+          id(battery_voltage).publish_state(voltage);
+          id(battery_current).publish_state(current);
+          id(battery_temperature).publish_state(temperature);
+          id(battery_power).publish_state(power);
+
+          //ESP_LOGD("pylontech", "voltage_module %f", voltage);
+          //ESP_LOGD("pylontech", "current_module %f", current);
+          //ESP_LOGD("pylontech", "temperature_module %f", temperature);
+
