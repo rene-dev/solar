@@ -1,0 +1,87 @@
+substitutions:
+  name: mpi1
+
+esphome:
+  name: mpi1
+  friendly_name: mpi1
+
+#external_components:
+#  - source: github://rene-dev/esphome@pip17
+#    components: [ pipsolar ]
+
+esp32:
+  board: esp32dev
+#  framework:
+#    type: arduino
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "OdfE5hcN2RBxvxa1D+3LMMH3LQuaDwS5vkQqiOA0urA="
+
+ota:
+  platform: esphome
+  password: "323ff733ffb8771d5f2886a72fad59da"
+
+logger:
+  level: DEBUG
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_OUT
+
+#external_components:
+#  - source: my_components
+
+uart:
+  tx_pin: GPIO17
+  rx_pin: GPIO34
+  baud_rate: 2400
+#  debug:
+#    direction: BOTH
+#    dummy_receiver: false
+#    after:
+#      delimiter: "\r"
+#    sequence:
+#      - lambda: UARTDebug::log_string(direction, bytes);
+
+#mpi:
+#  - id: inverter0
+
+#interval:
+#  - interval: 10s
+#    then:
+#      uart.write: "^P003GS\r"
+
+pipsolar:
+  - id: inverter0
+
+sensor:
+  - platform: pipsolar
+    pipsolar_id: inverter0
+    inverter_heat_sink_temperature:
+      name: ${name} inverter_heat_sink_temperature
+    component_max_temp:
+      name: ${name} component_max_temp
+    energy:
+      name: ${name} energy
+    pv_voltage1:
+      name: ${name} pv_voltage1
+    pv_voltage2:
+      name: ${name} pv_voltage2
+    pv_current1:
+      name: ${name} pv_current1
+    pv_current2:
+      name: ${name} pv_current2
+    grid_frequency:
+      name: ${name} grid_frequency
+    pv_power1:
+      name: ${name} pv_power1
+    pv_power2:
+      name: ${name} pv_power2
+    battery_power:
+      name: ${name} battery_power
+    ac_input_total_active_power:
+      name: ${name} ac_input_total_active_power

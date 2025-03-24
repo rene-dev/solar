@@ -8,6 +8,7 @@ esphome:
 #external_components:
 #  - source: github://rene-dev/esphome@pip17
 #    components: [ pipsolar ]
+#    refresh: 0s
 
 esp32:
   board: esp32dev
@@ -40,13 +41,13 @@ uart:
   tx_pin: GPIO17
   rx_pin: GPIO34
   baud_rate: 2400
-  debug:
-    direction: BOTH
-    dummy_receiver: false
+#  debug:
+#    direction: BOTH
+#    dummy_receiver: false
 #    after:
 #      delimiter: "\r"
-    sequence:
-      - lambda: UARTDebug::log_string(direction, bytes);
+#    sequence:
+#      - lambda: UARTDebug::log_string(direction, bytes);
 
 #mpi:
 #  - id: inverter0
@@ -59,7 +60,22 @@ uart:
 pipsolar:
   - id: inverter0
 
+udp:
+  providers:
+    - name: gas
+      encryption: "solarnursosolala"
+
 sensor:
+  - platform: udp
+    id: obis_power_total
+    #remote_id: obis_power_total
+    #internal: true
+    provider: gas
+    on_value:
+    - lambda: |-
+        //ESP_LOGD("UDP", "obis_power_total %f",  x);
+        id(eminfo).publish_state(x*1000);
+  
   - platform: pipsolar
     pipsolar_id: inverter0
     inverter_heat_sink_temperature:
@@ -164,13 +180,13 @@ sensor:
     #accuracy_decimals: 2
     unit_of_measurement: "°C"
 
-  - platform: homeassistant
-    id: obis_power_total
-    internal: true
-    entity_id: sensor.obis_power_total
-    on_value:
-      - lambda: |-
-          id(eminfo).publish_state(x*1000);
+  # - platform: homeassistant
+  #   id: obis_power_total
+  #   internal: true
+  #   entity_id: sensor.obis_power_total
+  #   on_value:
+  #     - lambda: |-
+  #         id(eminfo).publish_state(x*1000);
 
 #    attribute: current_temperature
 
@@ -204,11 +220,26 @@ canbus:
       - lambda: |-
           int soc = x[0] | x[1] << 8;
           int soh = x[2] | x[3] << 8;
+          int max_soc = id(battery_max_soc).state;
+          int min_soc = id(battery_min_soc).state;
+          int stopdischarge = 0;
+          int stopcharge = 0;
+          if(soc < min_soc){
+            stopdischarge = 1;
+          }
+          if(soc > max_soc){
+            stopcharge = 1;
+          }
 
-          id(bms_stopcharge).publish_state(0);
-          id(bms_stopdischarge).publish_state(0);
+          id(bms_stopcharge).publish_state(stopcharge);
+          id(bms_stopdischarge).publish_state(stopdischarge);
 
-          id(bms_soc).publish_state(soc);
+          static int counter = 0;
+          counter++;
+          if(counter > 3){
+            id(bms_soc).publish_state(soc);
+            counter = 0;
+          }
 
           id(battery_soc).publish_state(soc);
           id(battery_soh).publish_state(soh);
@@ -234,3 +265,24 @@ canbus:
           //ESP_LOGD("pylontech", "current_module %f", current);
           //ESP_LOGD("pylontech", "temperature_module %f", temperature);
 
+number:
+  - platform: template
+    name: "Battery Min SOC"
+    id: "battery_min_soc"
+    mode: BOX
+    optimistic: true
+    min_value: 0
+    max_value: 100
+    step: 1
+    restore_value: true
+    initial_value: 15
+  - platform: template
+    name: "Battery max SOC"
+    id: "battery_max_soc"
+    mode: BOX
+    optimistic: true
+    min_value: 0
+    max_value: 100
+    step: 1
+    restore_value: true
+    initial_value: 100
